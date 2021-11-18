@@ -1,6 +1,6 @@
 # Hatchery
 
-Back up your Last.fm data to a local database.
+A program to backup your Last.fm data.
 
 ## Why?
 
