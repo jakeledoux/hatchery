@@ -1,6 +1,7 @@
 # Hatchery
 
-A program to backup your Last.fm data.
+A program to backup your Last.fm data. Thank god for the hatchery, without it
+we'd all be lost.
 
 ## Usage
 
