@@ -19,28 +19,60 @@ struct Opts {
 }
 
 fn main() {
-    // Load environment variables from .env file
-    dotenv::dotenv().ok();
-    // Parse program options
-    // let opt: Opts = Opts::parse();
+    // Init logging
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info)
+        .init();
 
-    // DEBUG: Load cached response from JSON
-    if let Ok(file) = std::fs::File::open("response.json") {
-        let response: RecentTracksResponse =
-            serde_json::from_reader(file).expect("failed to read from file");
-        let mut conn = open_db(DatabaseLocation::Memory).expect("Failed to open database.");
-        create_tables(&mut conn).expect("Failed to create tables???");
-        insert_scrobbles(&mut conn, response.recent_tracks).expect("Failed to insert scrobbles.");
-    }
+    // Load environment variables
+    log::debug!("Loading environment variables");
+    dotenv::dotenv().ok();
+
+    // Parse program options
+    log::debug!("Parsing Clap options");
+    let opt: Opts = Opts::parse();
 
     // Create last.fm api client
-    // let mut client = LastFM::new(&opt.api_key, &opt.api_secret);
-    // if let Ok(response) = client.recent_tracks(&opt.username) {
-    //     // Serialize scrobbles
-    //     if let Ok(file) = std::fs::File::create("response.json") {
-    //         serde_json::to_writer(&file, &response).expect("Failed to write response");
-    //     } else {
-    //         eprintln!("Oh no! Failed to open file.");
-    //     }
-    // }
+    let mut client = LastFM::new(&opt.api_key, &opt.api_secret);
+
+    let mut tracks: Vec<Track> = Vec::new();
+    log::info!("Fetching recent tracks...");
+    if let Ok(fetched_tracks) = client.recent_tracks(&opt.username) {
+        tracks.extend(fetched_tracks);
+        log::info!("Done!");
+    } else {
+        log::error!("Failed to fetch tracks");
+    }
+
+    let mut friends: Vec<Friend> = Vec::new();
+    log::info!("Fetching friends...");
+    if let Ok(fetched_friends) = client.friends(&opt.username) {
+        friends.extend(fetched_friends);
+        log::info!("Done!");
+    } else {
+        log::error!("Failed to fetch friends");
+    }
+
+    log::info!("Opening database...");
+    let mut conn = open_db(DatabaseLocation::Disk(opt.database)).expect("Failed to open database.");
+
+    log::info!("Creating tables...");
+    create_tables(&mut conn).expect("Failed to create tables???");
+
+    if !tracks.is_empty() {
+        log::info!("Inserting scrobbles...");
+        insert_scrobbles(&mut conn, tracks).expect("Failed to insert scrobbles.");
+    } else {
+        log::warn!("Skipping inserting scrobbles.");
+    }
+
+    if !friends.is_empty() {
+        log::info!("Inserting friends...");
+        insert_friends(&mut conn, friends).expect("Failed to insert scrobbles.");
+    } else {
+        log::warn!("Skipping inserting scrobbles.");
+    }
+
+    log::info!("Done!");
+    close_db(conn).expect("Failed to close db???????");
 }

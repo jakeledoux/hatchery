@@ -49,8 +49,8 @@ pub enum ImageSize {
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Image {
-    #[serde(rename = "#text")]
-    pub url: String,
+    #[serde(rename = "#text", with = "string_empty_as_none")]
+    pub url: Option<String>,
     pub size: ImageSize,
 }
 
@@ -96,7 +96,7 @@ pub struct Track {
 
 #[serde_as]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
-pub struct RecentTracksAttributes {
+pub struct RequestAttributes {
     #[serde_as(as = "DisplayFromStr")]
     pub page: usize,
     #[serde_as(as = "DisplayFromStr")]
@@ -114,7 +114,7 @@ pub struct RecentTracksAttributes {
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RecentTracks {
     #[serde(rename = "@attr")]
-    pub attributes: RecentTracksAttributes,
+    pub attributes: RequestAttributes,
     #[serde(rename = "track")]
     pub tracks: Vec<Track>,
 }
@@ -123,6 +123,42 @@ pub struct RecentTracks {
 pub struct RecentTracksResponse {
     #[serde(rename = "recenttracks")]
     pub recent_tracks: RecentTracks,
+}
+
+#[serde_as]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct RegisterDate {
+    #[serde(rename = "#text")]
+    pub pretty_string: String,
+    #[serde_as(as = "TimestampSeconds<String, Strict>")]
+    #[serde(rename = "unixtime")]
+    pub datetime: DateTime<Utc>,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Friend {
+    pub name: String,
+    pub image: Vec<Image>,
+    pub country: String,
+    pub url: String,
+    #[serde(deserialize_with = "deserialize_bool_from_anything")]
+    pub subscriber: bool,
+    #[serde(rename = "realname", with = "string_empty_as_none")]
+    pub real_name: Option<String>,
+    pub registered: RegisterDate,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Friends {
+    #[serde(rename = "@attr")]
+    pub attributes: RequestAttributes,
+    #[serde(rename = "user")]
+    pub friends: Vec<Friend>,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct FriendsResponse {
+    friends: Friends,
 }
 
 pub struct LastFM {
@@ -213,18 +249,121 @@ impl LastFM {
         Ok(())
     }
 
-    pub fn recent_tracks(&mut self, username: &str) -> Result<serde_json::Value, Box<dyn Error>> {
-        let page = 1;
-        let resp = self.get(
-            "user.getRecentTracks",
-            vec![
-                ("user".to_string(), username.to_string()),
-                ("limit".to_string(), "200".to_string()),
-                ("page".to_string(), page.to_string()),
-            ],
-        )?;
+    pub fn recent_tracks(&mut self, username: &str) -> Result<Vec<Track>, Box<dyn Error>> {
+        let mut tracks: Vec<Track> = Vec::new();
+        let mut page = 1;
+        let mut total_pages = 0;
+        let mut failures = 0;
 
-        let recent_tracks: serde_json::Value = resp.json()?;
-        Ok(recent_tracks)
+        loop {
+            let mut success = false;
+            log::info!(
+                "Requesting page {} of {}",
+                page,
+                match total_pages {
+                    0 => "?".to_string(),
+                    _ => total_pages.to_string(),
+                }
+            );
+            if let Ok(resp) = self.get(
+                "user.getRecentTracks",
+                vec![
+                    ("user".to_string(), username.to_string()),
+                    ("limit".to_string(), "200".to_string()),
+                    ("page".to_string(), page.to_string()),
+                ],
+            ) {
+                if let Ok(response) = resp.json::<RecentTracksResponse>() {
+                    tracks.extend(response.recent_tracks.tracks);
+
+                    success = true;
+                    failures = 0;
+                    page += 1;
+
+                    let new_total_pages = response.recent_tracks.attributes.total_pages;
+                    if new_total_pages > total_pages {
+                        total_pages = new_total_pages;
+                    } else if new_total_pages < total_pages {
+                        log::warn!(
+                            "Total pages shrunk from {} to {}. Ignoring",
+                            total_pages,
+                            new_total_pages
+                        );
+                    }
+
+                    if page > total_pages {
+                        break Ok(tracks);
+                    }
+                }
+            }
+            if !success {
+                failures += 1;
+                if failures < 3 {
+                    log::warn!("Failed to get page. Retrying...");
+                } else {
+                    log::error!("Max retries reached. Aborting.");
+                    break Err(Box::new(LastFMError::RequestError));
+                }
+            }
+        }
+    }
+
+    pub fn friends(&mut self, username: &str) -> Result<Vec<Friend>, Box<dyn Error>> {
+        let mut friends: Vec<Friend> = Vec::new();
+        let mut page = 1;
+        let mut total_pages = 0;
+        let mut failures = 0;
+
+        loop {
+            let mut success = false;
+            log::info!(
+                "Requesting page {} of {}",
+                page,
+                match total_pages {
+                    0 => "?".to_string(),
+                    _ => total_pages.to_string(),
+                }
+            );
+            if let Ok(resp) = self.get(
+                "user.getFriends",
+                vec![
+                    ("user".to_string(), username.to_string()),
+                    ("limit".to_string(), "50".to_string()),
+                    ("page".to_string(), page.to_string()),
+                ],
+            ) {
+                if let Ok(response) = resp.json::<FriendsResponse>() {
+                    friends.extend(response.friends.friends);
+
+                    success = true;
+                    failures = 0;
+                    page += 1;
+
+                    let new_total_pages = response.friends.attributes.total_pages;
+                    if new_total_pages > total_pages {
+                        total_pages = new_total_pages;
+                    } else if new_total_pages < total_pages {
+                        log::warn!(
+                            "Total pages shrunk from {} to {}. Ignoring",
+                            total_pages,
+                            new_total_pages
+                        );
+                    }
+
+                    if page > total_pages {
+                        break Ok(friends);
+                    }
+                }
+            }
+            if !success {
+                failures += 1;
+                if failures < 3 {
+                    log::warn!("Failed to get page. Retrying...");
+                } else {
+                    log::error!("Max retries reached. Aborting.");
+                    break Err(Box::new(LastFMError::RequestError));
+                }
+            }
+        }
     }
 }
