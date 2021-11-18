@@ -2,6 +2,27 @@
 
 A program to backup your Last.fm data.
 
+## Usage
+
+``` console
+hatchery 0.1.0
+
+Jake Ledoux (contactjakeledoux@gmail.com)
+
+USAGE:
+    hatchery [OPTIONS] --api-key <API_KEY> --api-secret <API_SECRET> <USERNAME>
+
+ARGS:
+    <USERNAME>    [env: LASTFM_USERNAME=]
+
+OPTIONS:
+        --api-key <API_KEY>          [env: LASTFM_API_KEY=]
+        --api-secret <API_SECRET>    [env: LASTFM_API_SECRET=]
+        --database <DATABASE>        [default: lastfm.db]
+    -h, --help                       Print help information
+    -V, --version                    Print version information
+```
+
 ## Why?
 
 You learn all sorts of things working for the hatchery, one of those being the
