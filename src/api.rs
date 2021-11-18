@@ -281,14 +281,18 @@ impl LastFM {
                     page += 1;
 
                     let new_total_pages = response.recent_tracks.attributes.total_pages;
-                    if new_total_pages > total_pages {
-                        total_pages = new_total_pages;
-                    } else if new_total_pages < total_pages {
-                        log::warn!(
-                            "Total pages shrunk from {} to {}. Ignoring",
-                            total_pages,
-                            new_total_pages
-                        );
+                    match new_total_pages.cmp(&total_pages) {
+                        std::cmp::Ordering::Greater => {
+                            total_pages = new_total_pages;
+                        }
+                        std::cmp::Ordering::Less => {
+                            log::warn!(
+                                "Total pages shrunk from {} to {}. Ignoring",
+                                total_pages,
+                                new_total_pages
+                            );
+                        }
+                        _ => {}
                     }
 
                     if page > total_pages {
@@ -340,14 +344,18 @@ impl LastFM {
                     page += 1;
 
                     let new_total_pages = response.friends.attributes.total_pages;
-                    if new_total_pages > total_pages {
-                        total_pages = new_total_pages;
-                    } else if new_total_pages < total_pages {
-                        log::warn!(
-                            "Total pages shrunk from {} to {}. Ignoring",
-                            total_pages,
-                            new_total_pages
-                        );
+                    match new_total_pages.cmp(&total_pages) {
+                        std::cmp::Ordering::Greater => {
+                            total_pages = new_total_pages;
+                        }
+                        std::cmp::Ordering::Less => {
+                            log::warn!(
+                                "Total pages shrunk from {} to {}. Ignoring",
+                                total_pages,
+                                new_total_pages
+                            );
+                        }
+                        _ => {}
                     }
 
                     if page > total_pages {
