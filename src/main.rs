@@ -35,15 +35,17 @@ fn main() {
     // Create last.fm api client
     let mut client = LastFM::new(&opt.api_key, &opt.api_secret);
 
-    let mut tracks: Vec<Track> = Vec::new();
-    log::info!("Fetching recent tracks...");
-    if let Ok(fetched_tracks) = client.recent_tracks(&opt.username) {
-        tracks.extend(fetched_tracks);
+    // Get loved tracks
+    let mut loved_tracks: Vec<LovedTrack> = Vec::new();
+    log::info!("Fetching loved tracks...");
+    if let Ok(fetched_tracks) = client.loved_tracks(&opt.username) {
+        loved_tracks.extend(fetched_tracks);
         log::info!("Done!");
     } else {
-        log::error!("Failed to fetch tracks");
+        log::error!("Failed to fetch loved tracks");
     }
 
+    // Get scrobbles
     let mut friends: Vec<Friend> = Vec::new();
     log::info!("Fetching friends...");
     if let Ok(fetched_friends) = client.friends(&opt.username) {
@@ -53,26 +55,63 @@ fn main() {
         log::error!("Failed to fetch friends");
     }
 
+    // Get friends
+    let mut scrobbles: Vec<Track> = Vec::new();
+    log::info!("Fetching recent tracks...");
+    if let Ok(fetched_tracks) = client.recent_tracks(&opt.username) {
+        scrobbles.extend(fetched_tracks);
+        log::info!("Done!");
+    } else {
+        log::error!("Failed to fetch recent tracks");
+    }
+
+    // Create database and insert data
+
     log::info!("Opening database...");
-    let mut conn = open_db(DatabaseLocation::Disk(opt.database)).expect("Failed to open database.");
+    if let Ok(mut conn) = open_db(DatabaseLocation::Disk(opt.database)) {
+        log::info!("Creating tables...");
+        if create_tables(&mut conn).is_ok() {
+            // Begin inserting data
 
-    log::info!("Creating tables...");
-    create_tables(&mut conn).expect("Failed to create tables???");
+            if !loved_tracks.is_empty() {
+                log::info!("Inserting loved tracks...");
+                if insert_loved_tracks(&mut conn, loved_tracks).is_ok() {
+                    log::info!("Done!");
+                } else {
+                    log::error!("Failed to insert loved tracks. Continuing...");
+                }
+            } else {
+                log::warn!("No loved tracks fetched. Skipping.");
+            }
 
-    if !tracks.is_empty() {
-        log::info!("Inserting scrobbles...");
-        insert_scrobbles(&mut conn, tracks).expect("Failed to insert scrobbles.");
+            if !friends.is_empty() {
+                log::info!("Inserting friends...");
+                if insert_friends(&mut conn, friends).is_ok() {
+                    log::info!("Done!");
+                } else {
+                    log::error!("Failed to insert friends. Continuing...");
+                }
+            } else {
+                log::warn!("No friends fetched. Skipping.");
+            }
+
+            if !scrobbles.is_empty() {
+                log::info!("Inserting scrobbles...");
+                if insert_scrobbles(&mut conn, scrobbles).is_ok() {
+                    log::info!("Done!");
+                } else {
+                    log::error!("Failed to insert scrobbles.");
+                }
+            } else {
+                log::warn!("No scrobbles fetched. Skipping.");
+            }
+
+            log::info!("Done!");
+            close_db(conn).expect("Failed to close db???????");
+        } else {
+            log::error!("Failed to create tables.")
+        }
     } else {
-        log::warn!("Skipping inserting scrobbles.");
+        log::error!("Failed to open DB. Check the provided path.")
     }
-
-    if !friends.is_empty() {
-        log::info!("Inserting friends...");
-        insert_friends(&mut conn, friends).expect("Failed to insert scrobbles.");
-    } else {
-        log::warn!("Skipping inserting scrobbles.");
-    }
-
-    log::info!("Done!");
-    close_db(conn).expect("Failed to close db???????");
 }

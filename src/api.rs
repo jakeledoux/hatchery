@@ -83,13 +83,11 @@ pub struct Track {
     #[serde(rename = "@attr")]
     pub attributes: Option<TrackAttributes>,
     pub artist: Artist,
-    pub album: Album,
+    pub album: Option<Album>,
     pub name: String,
     pub image: Vec<Image>,
     pub date: Option<Date>,
     pub url: String,
-    #[serde(deserialize_with = "deserialize_bool_from_anything")]
-    pub streamable: bool,
     #[serde(with = "string_empty_as_none")]
     pub mbid: Option<String>,
 }
@@ -123,6 +121,40 @@ pub struct RecentTracks {
 pub struct RecentTracksResponse {
     #[serde(rename = "recenttracks")]
     pub recent_tracks: RecentTracks,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct LovedArtist {
+    pub name: String,
+    #[serde(with = "string_empty_as_none")]
+    pub mbid: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct LovedTrack {
+    #[serde(rename = "@attr")]
+    pub attributes: Option<TrackAttributes>,
+    pub artist: LovedArtist,
+    pub name: String,
+    pub image: Vec<Image>,
+    pub date: Option<Date>,
+    pub url: String,
+    #[serde(with = "string_empty_as_none")]
+    pub mbid: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct LovedTracks {
+    #[serde(rename = "@attr")]
+    pub attributes: RequestAttributes,
+    #[serde(rename = "track")]
+    pub tracks: Vec<LovedTrack>,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct LovedTracksResponse {
+    #[serde(rename = "lovedtracks")]
+    pub loved_tracks: LovedTracks,
 }
 
 #[serde_as]
@@ -281,6 +313,70 @@ impl LastFM {
                     page += 1;
 
                     let new_total_pages = response.recent_tracks.attributes.total_pages;
+                    match new_total_pages.cmp(&total_pages) {
+                        std::cmp::Ordering::Greater => {
+                            total_pages = new_total_pages;
+                        }
+                        std::cmp::Ordering::Less => {
+                            log::warn!(
+                                "Total pages shrunk from {} to {}. Ignoring",
+                                total_pages,
+                                new_total_pages
+                            );
+                        }
+                        _ => {}
+                    }
+
+                    if page > total_pages {
+                        break Ok(tracks);
+                    }
+                }
+            }
+            if !success {
+                failures += 1;
+                if failures < 3 {
+                    log::warn!("Failed to get page. Retrying...");
+                } else {
+                    log::error!("Max retries reached. Aborting.");
+                    break Err(Box::new(LastFMError::RequestError));
+                }
+            }
+        }
+    }
+
+    pub fn loved_tracks(&mut self, username: &str) -> Result<Vec<LovedTrack>, Box<dyn Error>> {
+        let mut tracks: Vec<LovedTrack> = Vec::new();
+        let mut page = 1;
+        let mut total_pages = 0;
+        let mut failures = 0;
+
+        loop {
+            let mut success = false;
+            log::info!(
+                "Requesting page {} of {}",
+                page,
+                match total_pages {
+                    0 => "?".to_string(),
+                    _ => total_pages.to_string(),
+                }
+            );
+            if let Ok(resp) = self.get(
+                "user.getLovedTracks",
+                vec![
+                    ("user".to_string(), username.to_string()),
+                    ("limit".to_string(), "200".to_string()),
+                    ("page".to_string(), page.to_string()),
+                ],
+            ) {
+                let response = resp.json::<LovedTracksResponse>();
+                if let Ok(response) = response {
+                    tracks.extend(response.loved_tracks.tracks);
+
+                    success = true;
+                    failures = 0;
+                    page += 1;
+
+                    let new_total_pages = response.loved_tracks.attributes.total_pages;
                     match new_total_pages.cmp(&total_pages) {
                         std::cmp::Ordering::Greater => {
                             total_pages = new_total_pages;
