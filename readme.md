@@ -38,3 +38,35 @@ and friends to a local database to ensure their safe-keeping in the event that
 anything should happen to Last.fm.
 
 *Last.fm is dead, long live Last.fm.*
+
+## AFAQ
+
+Anticipated Frequently Asked Questions:
+
+### Why do you fetch my entire scrobble history every time?
+
+**Short answer:** Scrobble editing/deleting.
+
+If it weren't for that I could just ask
+for the scrobbles since the last update and the whole thing would run much
+faster. A full backup is what we want, so a full report must be requested
+every time.
+
+### Why do you need my secret key?
+
+**Short answer:** I don't.
+
+I only require it in case it's needed in a future version.
+
+### Why can't I export to multiple formats simultaneously?
+
+**Short answer:** Because there's no point.
+
+This isn't something that can't be done, I just don't see a use case where you'd
+want both versions. This program is for backing up your data, not preparing it
+for data analysis or anything else, and there's no sense backing it up in two
+different formats.
+
+### Why can't I back up multiple accounts?
+
+**Short answer:** You can: just run the program multiple times.
