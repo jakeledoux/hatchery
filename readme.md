@@ -39,6 +39,20 @@ anything should happen to Last.fm.
 
 *Last.fm is dead, long live Last.fm.*
 
+## Build requirements
+
+### Linux
+
+* libsqlite3-dev
+
+### macOS
+
+None AFAIK
+
+### Windows
+
+None AFAIK
+
 ## AFAQ
 
 Anticipated Frequently Asked Questions:
