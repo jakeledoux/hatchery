@@ -19,7 +19,7 @@ ARGS:
 OPTIONS:
         --api-key <API_KEY>          [env: LASTFM_API_KEY=]
         --api-secret <API_SECRET>    [env: LASTFM_API_SECRET=]
-        --database <DATABASE>        [default: lastfm.db]
+    -f, --format <FORMAT>            [default: json] [possible values: json, sql]
     -h, --help                       Print help information
     -V, --version                    Print version information
 ```
