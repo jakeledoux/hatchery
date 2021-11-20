@@ -1,30 +1,13 @@
 use super::api::*;
 use rusqlite::{params, Connection};
 
-pub enum DatabaseLocation {
-    Memory,
-    Disk(String),
-}
-
-pub fn open_db(location: DatabaseLocation) -> rusqlite::Result<Connection> {
-    match location {
-        DatabaseLocation::Memory => Connection::open_in_memory(),
-        DatabaseLocation::Disk(path) => Connection::open(path),
-    }
+pub fn open_db(filename: &str) -> rusqlite::Result<Connection> {
+    Connection::open(filename)
 }
 
 pub fn close_db(conn: Connection) -> rusqlite::Result<(), (Connection, rusqlite::Error)> {
     conn.close()
 }
-
-// id integer primary key,
-// name text not null,
-// mbid text,
-// artist text not null,
-// artist_mbid text,
-// album text not null,
-// album_mbid text,
-// timestamp datetime
 
 pub fn create_tables(conn: &mut Connection) -> rusqlite::Result<()> {
     conn.execute("DROP TABLE IF EXISTS scrobbles", [])?;

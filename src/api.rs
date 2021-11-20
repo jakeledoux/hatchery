@@ -31,10 +31,13 @@ impl fmt::Display for LastFMError {
 #[serde_as]
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Date {
-    #[serde(rename = "#text")]
+    #[serde(rename(deserialize = "#text"))]
     pub pretty_string: String,
-    #[serde_as(as = "TimestampSeconds<String, Strict>")]
-    #[serde(rename = "uts")]
+    #[serde_as(
+        deserialize_as = "TimestampSeconds<String, Strict>",
+        serialize_as = "TimestampSeconds<i64, Strict>"
+    )]
+    #[serde(rename(deserialize = "uts", serialize = "timestamp"))]
     pub datetime: DateTime<Utc>,
 }
 
@@ -49,142 +52,156 @@ pub enum ImageSize {
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Image {
-    #[serde(rename = "#text", with = "string_empty_as_none")]
+    #[serde(
+        rename(deserialize = "#text"),
+        with = "string_empty_as_none",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub url: Option<String>,
     pub size: ImageSize,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Artist {
-    #[serde(rename = "#text")]
+    #[serde(rename(deserialize = "#text"))]
     pub name: String,
-    #[serde(with = "string_empty_as_none")]
+    #[serde(with = "string_empty_as_none", skip_serializing_if = "Option::is_none")]
     pub mbid: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Album {
-    #[serde(rename = "#text")]
+    #[serde(rename(deserialize = "#text"))]
     pub name: String,
-    #[serde(with = "string_empty_as_none")]
+    #[serde(with = "string_empty_as_none", skip_serializing_if = "Option::is_none")]
     pub mbid: Option<String>,
 }
 
 #[serde_as]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct TrackAttributes {
-    #[serde_as(as = "DisplayFromStr")]
-    #[serde(rename = "nowplaying")]
+    #[serde_as(deserialize_as = "DisplayFromStr")]
+    #[serde(rename(deserialize = "nowplaying"))]
     pub now_playing: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Track {
-    #[serde(rename = "@attr")]
+    #[serde(rename(deserialize = "@attr"), skip_serializing_if = "Option::is_none")]
     pub attributes: Option<TrackAttributes>,
     pub artist: Artist,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub album: Option<Album>,
     pub name: String,
-    pub image: Vec<Image>,
+    pub image: Vec<Image>, // TODO: Skip images that don't contain URLs
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<Date>,
     pub url: String,
-    #[serde(with = "string_empty_as_none")]
+    #[serde(with = "string_empty_as_none", skip_serializing_if = "Option::is_none")]
     pub mbid: Option<String>,
 }
 
 #[serde_as]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct RequestAttributes {
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde_as(deserialize_as = "DisplayFromStr")]
     pub page: usize,
-    #[serde_as(as = "DisplayFromStr")]
-    #[serde(rename = "perPage")]
+    #[serde_as(deserialize_as = "DisplayFromStr")]
+    #[serde(rename(deserialize = "perPage"))]
     pub per_page: usize,
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde_as(deserialize_as = "DisplayFromStr")]
     pub total: usize,
-    #[serde_as(as = "DisplayFromStr")]
-    #[serde(rename = "totalPages")]
+    #[serde_as(deserialize_as = "DisplayFromStr")]
+    #[serde(rename(deserialize = "totalPages"))]
     pub total_pages: usize,
-    #[serde(rename = "user")]
+    #[serde(rename(deserialize = "user"))]
     pub username: String,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RecentTracks {
-    #[serde(rename = "@attr")]
+    #[serde(rename(deserialize = "@attr"))]
     pub attributes: RequestAttributes,
-    #[serde(rename = "track")]
+    #[serde(rename(deserialize = "track"))]
     pub tracks: Vec<Track>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RecentTracksResponse {
-    #[serde(rename = "recenttracks")]
+    #[serde(rename(deserialize = "recenttracks"))]
     pub recent_tracks: RecentTracks,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct LovedArtist {
     pub name: String,
-    #[serde(with = "string_empty_as_none")]
+    #[serde(with = "string_empty_as_none", skip_serializing_if = "Option::is_none")]
     pub mbid: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct LovedTrack {
-    #[serde(rename = "@attr")]
+    #[serde(rename(deserialize = "@attr"), skip_serializing_if = "Option::is_none")]
     pub attributes: Option<TrackAttributes>,
     pub artist: LovedArtist,
     pub name: String,
-    pub image: Vec<Image>,
+    pub image: Vec<Image>, // TODO: Skip images that don't contain URLs
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<Date>,
     pub url: String,
-    #[serde(with = "string_empty_as_none")]
+    #[serde(with = "string_empty_as_none", skip_serializing_if = "Option::is_none")]
     pub mbid: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct LovedTracks {
-    #[serde(rename = "@attr")]
+    #[serde(rename(deserialize = "@attr"))]
     pub attributes: RequestAttributes,
-    #[serde(rename = "track")]
+    #[serde(rename(deserialize = "track"))]
     pub tracks: Vec<LovedTrack>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct LovedTracksResponse {
-    #[serde(rename = "lovedtracks")]
+    #[serde(rename(deserialize = "lovedtracks"))]
     pub loved_tracks: LovedTracks,
 }
 
 #[serde_as]
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RegisterDate {
-    #[serde(rename = "#text")]
+    #[serde(rename(deserialize = "#text"))]
     pub pretty_string: String,
-    #[serde_as(as = "TimestampSeconds<String, Strict>")]
-    #[serde(rename = "unixtime")]
+    #[serde_as(
+        deserialize_as = "TimestampSeconds<String, Strict>",
+        serialize_as = "TimestampSeconds<i64, Strict>"
+    )]
+    #[serde(rename(deserialize = "unixtime", serialize = "timestamp"))]
     pub datetime: DateTime<Utc>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Friend {
     pub name: String,
-    pub image: Vec<Image>,
+    pub image: Vec<Image>, // TODO: Skip images that don't contain URLs
     pub country: String,
     pub url: String,
     #[serde(deserialize_with = "deserialize_bool_from_anything")]
     pub subscriber: bool,
-    #[serde(rename = "realname", with = "string_empty_as_none")]
+    #[serde(
+        rename(deserialize = "realname"),
+        with = "string_empty_as_none",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub real_name: Option<String>,
     pub registered: RegisterDate,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Friends {
-    #[serde(rename = "@attr")]
+    #[serde(rename(deserialize = "@attr"))]
     pub attributes: RequestAttributes,
-    #[serde(rename = "user")]
+    #[serde(rename(deserialize = "user"))]
     pub friends: Vec<Friend>,
 }
 
@@ -328,6 +345,7 @@ impl LastFM {
                     }
 
                     if page > total_pages {
+                        // TODO: remove true
                         break Ok(tracks);
                     }
                 }
@@ -392,6 +410,7 @@ impl LastFM {
                     }
 
                     if page > total_pages {
+                        // TODO: remove true
                         break Ok(tracks);
                     }
                 }
@@ -455,6 +474,7 @@ impl LastFM {
                     }
 
                     if page > total_pages {
+                        // TODO: remove true
                         break Ok(friends);
                     }
                 }
