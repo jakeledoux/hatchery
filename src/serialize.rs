@@ -1,9 +1,8 @@
 use std::fs::File;
 
-use anyhow::Result;
 use serde::Serialize;
 
-pub fn write_json<T: Serialize>(filename: String, data: T) -> Result<()> {
+pub fn write_json<T: Serialize>(filename: String, data: T) -> anyhow::Result<()> {
     let file = File::create(filename)?;
     // TODO: Optional pretty output
     serde_json::to_writer_pretty(file, &data)?;
@@ -11,7 +10,7 @@ pub fn write_json<T: Serialize>(filename: String, data: T) -> Result<()> {
 }
 
 #[allow(dead_code)]
-pub fn write_csv<T: Serialize>(filename: String, data: &[T]) -> Result<()> {
+pub fn write_csv<T: Serialize>(filename: String, data: &[T]) -> anyhow::Result<()> {
     let file = File::create(filename)?;
     let mut csv_writer = csv::Writer::from_writer(file);
 

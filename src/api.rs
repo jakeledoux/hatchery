@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::deserialize_bool_from_anything;
@@ -279,7 +280,7 @@ impl LastFM {
         self.http_client.execute(req)
     }
 
-    pub fn authenticate(&mut self, username: &str, password: &str) -> Result<(), Box<dyn Error>> {
+    pub fn authenticate(&mut self, username: &str, password: &str) -> anyhow::Result<()> {
         let resp = self.post(
             "auth.getMobileSession",
             vec![
@@ -292,13 +293,13 @@ impl LastFM {
         self.session_key = auth_response["session"]["key"].as_str().map(String::from);
 
         if self.session_key.is_none() {
-            return Err(Box::new(LastFMError::AuthError));
+            return Err(anyhow!(LastFMError::AuthError));
         }
 
         Ok(())
     }
 
-    pub fn recent_tracks(&mut self, username: &str) -> Result<Vec<Track>, Box<dyn Error>> {
+    pub fn recent_tracks(&mut self, username: &str) -> anyhow::Result<Vec<Track>> {
         let mut tracks: Vec<Track> = Vec::new();
         let mut page = 1;
         let mut total_pages = 0;
@@ -356,13 +357,13 @@ impl LastFM {
                     log::warn!("Failed to get page. Retrying...");
                 } else {
                     log::error!("Max retries reached. Aborting.");
-                    break Err(Box::new(LastFMError::RequestError));
+                    break Err(anyhow!(LastFMError::RequestError));
                 }
             }
         }
     }
 
-    pub fn loved_tracks(&mut self, username: &str) -> Result<Vec<LovedTrack>, Box<dyn Error>> {
+    pub fn loved_tracks(&mut self, username: &str) -> anyhow::Result<Vec<LovedTrack>> {
         let mut tracks: Vec<LovedTrack> = Vec::new();
         let mut page = 1;
         let mut total_pages = 0;
@@ -421,13 +422,13 @@ impl LastFM {
                     log::warn!("Failed to get page. Retrying...");
                 } else {
                     log::error!("Max retries reached. Aborting.");
-                    break Err(Box::new(LastFMError::RequestError));
+                    break Err(anyhow!(LastFMError::RequestError));
                 }
             }
         }
     }
 
-    pub fn friends(&mut self, username: &str) -> Result<Vec<Friend>, Box<dyn Error>> {
+    pub fn friends(&mut self, username: &str) -> anyhow::Result<Vec<Friend>> {
         let mut friends: Vec<Friend> = Vec::new();
         let mut page = 1;
         let mut total_pages = 0;
@@ -485,7 +486,7 @@ impl LastFM {
                     log::warn!("Failed to get page. Retrying...");
                 } else {
                     log::error!("Max retries reached. Aborting.");
-                    break Err(Box::new(LastFMError::RequestError));
+                    break Err(anyhow!(LastFMError::RequestError));
                 }
             }
         }
