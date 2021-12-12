@@ -402,7 +402,7 @@ impl LastFM {
                         }
                         std::cmp::Ordering::Less => {
                             log::warn!(
-                                "Total pages shrunk from {} to {}. Ignoring",
+                                "Total pages shrunk from {} to {}. Ignoring...",
                                 total_pages,
                                 new_total_pages
                             );
